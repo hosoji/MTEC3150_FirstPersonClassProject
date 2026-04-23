@@ -1,12 +1,25 @@
 //using System.Linq;
 using UnityEngine;
+using UnityEngine.AI;
 
 public class Enemy : MonoBehaviour
 {
-    private CharacterController controller;
+    //private CharacterController controller;
     public Transform player;
-    private Vector3 targetPoint;
+    //private Vector3 targetPoint;
     private Vector3 directionToPlayer;
+
+    private Vector3 lastKnownPosition;
+
+    private bool patrolling = true;
+    private bool playerFound = false;
+
+    public float alertDuration = 5;
+    private float timeSinceAlerted = 0;
+    public Transform [] waypoints;
+    private Transform targetWaypoint;
+    //private Vector3 targetPosition;
+    private int waypointIndex = 0;
 
     public float viewAngle = 120;
     public float viewRange = 5;
@@ -14,10 +27,12 @@ public class Enemy : MonoBehaviour
 
     public LayerMask playerLayer;
 
+    private NavMeshAgent agent;
+
     //private Quaternion defaultRotation;
 
-    public float rotationSpeed = 5;
-    public float walkSpeed = 5;
+    //public float rotationSpeed = 5;
+    //public float walkSpeed = 5;
 
 
     
@@ -26,7 +41,8 @@ public class Enemy : MonoBehaviour
 
     void Start()
     {
-        controller = GetComponent<CharacterController>();
+        //controller = GetComponent<CharacterController>();
+        agent = GetComponent<NavMeshAgent>();
 
         
     }
@@ -34,19 +50,75 @@ public class Enemy : MonoBehaviour
 
     void Update()
     {
+        targetWaypoint = waypoints[waypointIndex];
+        
+
         //Debug.DrawRay(transform.position, transform.forward * 10, Color.bisque);
 
-        targetPoint = new Vector3(player.position.x, transform.position.y, player.position.z);
-        directionToPlayer = (targetPoint - transform.position).normalized;
+        //targetPoint = new Vector3(player.position.x, transform.position.y, player.position.z);
+        directionToPlayer = (player.position - transform.position).normalized;
         Quaternion rot = Quaternion.LookRotation(directionToPlayer);
+
+        if (patrolling)
+        {
+            Patrol();
+        }
 
         if (PlayerDetected())
         {
-             transform.localRotation = Quaternion.RotateTowards(transform.localRotation, rot, rotationSpeed * Time.deltaTime );
+            playerFound = true;
+            patrolling = false;
+
+            timeSinceAlerted = 0;
+            lastKnownPosition = player.position;
+            //Debug.Log("Player found!");
+            agent.SetDestination(lastKnownPosition);
+
+              //transform.localRotation = Quaternion.RotateTowards(transform.localRotation, rot, agent.angularSpeed * Time.deltaTime );
     
         } 
 
-        controller.Move(transform.forward * walkSpeed * Time.deltaTime);
+        if (playerFound)
+        {
+            if (timeSinceAlerted < alertDuration)
+            {
+                //Debug.Log("Looking for player");
+                timeSinceAlerted += Time.deltaTime;
+            }
+            else
+            {
+                //Debug.Log("Returning to patrol");
+                playerFound = false;
+                timeSinceAlerted = 0;
+                patrolling = true;
+            }
+            
+        }
+
+        //controller.Move(transform.forward * walkSpeed * Time.deltaTime);
+
+        
+    }
+
+    private void Patrol()
+    {
+        //Debug.Log("Patrolling");
+        agent.SetDestination(targetWaypoint.position);
+
+        float dist = Vector3.Distance(transform.position, targetWaypoint.position);
+        float buffer = 0.25f;
+
+        if (dist <= buffer)
+        {
+    
+            waypointIndex++;
+
+            if (waypointIndex >= waypoints.Length)
+            {
+                waypointIndex = 0;
+            }
+        }
+
 
         
     }
