@@ -1,4 +1,5 @@
 //using System.Linq;
+using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -16,10 +17,18 @@ public class Enemy : MonoBehaviour
 
     public float alertDuration = 5;
     private float timeSinceAlerted = 0;
+    private float timeWaited = 0;
+    public float waitDuration = 2;
+    private bool isWaiting = false;
     public Transform [] waypoints;
     private Transform targetWaypoint;
     //private Vector3 targetPosition;
     private int waypointIndex = 0;
+
+    private bool hasJumped = false;
+
+    public float walkSpeed =1.5f;
+    public float runSpeed = 3;
 
     public float viewAngle = 120;
     public float viewRange = 5;
@@ -28,6 +37,7 @@ public class Enemy : MonoBehaviour
     public LayerMask playerLayer;
 
     private NavMeshAgent agent;
+    private Animator anim;
 
     //private Quaternion defaultRotation;
 
@@ -43,18 +53,35 @@ public class Enemy : MonoBehaviour
     {
         //controller = GetComponent<CharacterController>();
         agent = GetComponent<NavMeshAgent>();
+        anim = GetComponent<Animator>();
 
+        SetNextTargetWaypoint(true);
+
+        
+    }
+
+    private void SetNextTargetWaypoint(bool firstTime = false)
+    {
+        if (!firstTime)
+        {
+            waypointIndex++;   
+        }
+
+        if (waypointIndex >= waypoints.Length)
+        {
+            waypointIndex = 0;
+        }
+
+        targetWaypoint = waypoints[waypointIndex];
+        agent.SetDestination(targetWaypoint.position);
         
     }
 
 
     void Update()
     {
-        targetWaypoint = waypoints[waypointIndex];
+        anim.SetFloat("Velocity", agent.speed);
         
-
-        //Debug.DrawRay(transform.position, transform.forward * 10, Color.bisque);
-
         //targetPoint = new Vector3(player.position.x, transform.position.y, player.position.z);
         directionToPlayer = (player.position - transform.position).normalized;
         Quaternion rot = Quaternion.LookRotation(directionToPlayer);
@@ -70,6 +97,8 @@ public class Enemy : MonoBehaviour
             patrolling = false;
 
             timeSinceAlerted = 0;
+            timeWaited = 0;
+            isWaiting = false;
             lastKnownPosition = player.position;
             //Debug.Log("Player found!");
             agent.SetDestination(lastKnownPosition);
@@ -86,14 +115,41 @@ public class Enemy : MonoBehaviour
                 timeSinceAlerted += Time.deltaTime;
             }
             else
-            {
+            {    
                 //Debug.Log("Returning to patrol");
                 playerFound = false;
                 timeSinceAlerted = 0;
                 patrolling = true;
+                SetNextTargetWaypoint(true);
             }
             
         }
+
+        if (agent.isOnOffMeshLink && !hasJumped)
+        {
+            anim.SetTrigger("Jump");
+            hasJumped = true;
+        }
+
+        else if ( !agent.isOnOffMeshLink)
+        {
+            hasJumped = false;
+            
+        }
+
+
+
+
+        agent.speed = playerFound? runSpeed : walkSpeed;
+
+        // if (playerFound)
+        // {
+        //     agent.speed = walkSpeed;
+        // }
+        // else
+        // {
+        //     agent.speed = runSpeed;
+        // }
 
         //controller.Move(transform.forward * walkSpeed * Time.deltaTime);
 
@@ -103,20 +159,32 @@ public class Enemy : MonoBehaviour
     private void Patrol()
     {
         //Debug.Log("Patrolling");
-        agent.SetDestination(targetWaypoint.position);
+
 
         float dist = Vector3.Distance(transform.position, targetWaypoint.position);
         float buffer = 0.25f;
 
-        if (dist <= buffer)
+        if (dist <= buffer && !isWaiting)
         {
-    
-            waypointIndex++;
+            //SetNextTargetWaypoint(true);
+            isWaiting = true;
 
-            if (waypointIndex >= waypoints.Length)
+        }
+
+        if (isWaiting)
+        {
+            if (timeWaited < waitDuration)
             {
-                waypointIndex = 0;
+                timeWaited += Time.deltaTime;
             }
+            else
+            {
+                SetNextTargetWaypoint();
+                timeWaited = 0;
+                isWaiting = false;
+   
+            }
+            
         }
 
 
