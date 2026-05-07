@@ -1,5 +1,7 @@
 //using System.Linq;
+using System.Xml.XPath;
 using NUnit.Framework;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -80,7 +82,7 @@ public class Enemy : MonoBehaviour
 
     void Update()
     {
-        anim.SetFloat("Velocity", agent.speed);
+        anim.SetFloat("Velocity", agent.desiredVelocity.magnitude);
         
         //targetPoint = new Vector3(player.position.x, transform.position.y, player.position.z);
         directionToPlayer = (player.position - transform.position).normalized;
@@ -201,6 +203,7 @@ public class Enemy : MonoBehaviour
             if (Physics.Raycast(transform.position, directionToPlayer, viewRange, playerLayer))
             {
                 result = true;
+
             }
         }
 
